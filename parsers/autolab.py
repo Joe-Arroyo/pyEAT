@@ -280,7 +280,7 @@ def load_autolab_chronopotentiometry_ascii(file_path):
                 df = pd.read_csv(file_path, sep=sep, encoding='utf-8')
                 if len(df.columns) > 1:  # Successfully parsed
                     break
-            except:
+            except Exception:
                 continue
         
         if df is None:

@@ -595,10 +595,10 @@ class PolarizationTab(QWidget):
         for artist in self.transient_highlights:
             try:
                 artist.remove()
-            except:
+            except Exception:
                 pass
         self.transient_highlights.clear()
-        
+
         # Get selected point info
         group_name = selected_point['group']
         I_mean = selected_point['I']
@@ -703,18 +703,18 @@ class PolarizationTab(QWidget):
         if self.selected_annotation is not None:
             try:
                 self.selected_annotation.remove()
-            except:
+            except Exception:
                 pass
             self.selected_annotation = None
-        
+
         # Clear transient highlights
         for artist in self.transient_highlights:
             try:
                 artist.remove()
-            except:
+            except Exception:
                 pass
         self.transient_highlights.clear()
-        
+
         # Remove any selection highlights
         for ax in self.fig.get_axes():
             # Remove any temporary highlight points
@@ -722,7 +722,7 @@ class PolarizationTab(QWidget):
                 if hasattr(artist, '_temp_highlight') and artist._temp_highlight:
                     try:
                         artist.remove()
-                    except:
+                    except Exception:
                         pass
         
         self.canvas.draw_idle()
@@ -1283,10 +1283,10 @@ class PolarizationTab(QWidget):
         if self.selected_annotation is not None:
             try:
                 self.selected_annotation.remove()
-            except:
+            except Exception:
                 pass
             self.selected_annotation = None
-        
+
         # Get all visible groups
         visible_groups = self.get_visible_groups()
         if not visible_groups:
@@ -1326,7 +1326,7 @@ class PolarizationTab(QWidget):
                             'name': name,
                             'ax': ax
                         }
-                except:
+                except Exception:
                     continue
         
         # If found a close point, handle selection
@@ -1874,7 +1874,7 @@ class PolarizationTab(QWidget):
             # Use subplots_adjust instead of tight_layout for better control
             # This adds extra space on the right for the secondary y-axis
             self.fig.subplots_adjust(left=0.1, right=0.88, top=0.95, bottom=0.08)
-        except:
+        except Exception:
             pass  # Skip if adjustment fails
         
         self.canvas.draw()
