@@ -518,7 +518,7 @@ class EISTab(QWidget):
             
             # Replot with new names
             self.update_plot()
-            self.status_label.setText("[Icon]“ Legend names updated")
+            self.status_label.setText("✓ Legend names updated")
     
     def update_status(self):
         """Update status label"""
@@ -527,9 +527,9 @@ class EISTab(QWidget):
         if count == 0:
             self.status_label.setText("No files loaded")
         elif count == 1:
-            self.status_label.setText(f"[Icon]“ 1 file loaded")
+            self.status_label.setText(f"✓ 1 file loaded")
         else:
-            self.status_label.setText(f"[Icon]“ {count} files loaded")
+            self.status_label.setText(f"✓ {count} files loaded")
     
     def update_plot(self):
         """Update plot based on display mode"""
@@ -864,7 +864,7 @@ class EISTab(QWidget):
             
             combined_df = pd.concat(all_data, ignore_index=True)
             combined_df.to_csv(file_path, index=False)
-            self.status_label.setText(f"[Icon]“ Exported {len(self.loaded_files)} files to CSV")
+            self.status_label.setText(f"✓ Exported {len(self.loaded_files)} files to CSV")
     
     def export_png(self):
         """Export plot to PNG"""
@@ -875,7 +875,7 @@ class EISTab(QWidget):
         
         if file_path:
             self.figure.savefig(file_path, dpi=300, bbox_inches='tight')
-            self.status_label.setText(f"[Icon]“ Plot saved to PNG")    
+            self.status_label.setText(f"✓ Plot saved to PNG")    
     def export_plot(self):
         """Export current plot with custom settings"""
         
