@@ -29,7 +29,7 @@ class EISTab(QWidget):
         
         self.loaded_files = {}  # Dictionary: filename -> data
         self.display_names = {}  # Dictionary: filename -> custom display name
-        self.colors = plt.cm.tab20(np.linspace(0, 1, 20))  # 20 distinct colors
+        self.colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
         
         self.init_ui()
     
@@ -174,7 +174,8 @@ class EISTab(QWidget):
         self.file_list = QListWidget()
         self.file_list.setMaximumHeight(150)
         self.file_list.setDragDropMode(QListWidget.InternalMove)  # Enable drag & drop
-        self.file_list.itemChanged.connect(self.update_plot)
+        self.file_list.itemDoubleClicked.connect(self._start_legend_edit)
+        self.file_list.itemChanged.connect(self._on_item_changed)
         file_layout.addWidget(self.file_list)
         
         # Clear and remove buttons
@@ -188,11 +189,7 @@ class EISTab(QWidget):
         list_btn_layout.addWidget(self.clear_btn)
         file_layout.addLayout(list_btn_layout)
         
-        # Edit names button
-        self.edit_names_btn = QPushButton("Edit Legend Names")
-        self.edit_names_btn.clicked.connect(self.edit_legend_names)
-        self.edit_names_btn.setEnabled(False)
-        file_layout.addWidget(self.edit_names_btn)
+        file_layout.addWidget(QLabel("Double-click a name to rename its legend label."))
         
         # Status label
         self.status_label = QLabel("No files loaded")
@@ -429,7 +426,8 @@ class EISTab(QWidget):
                 self.display_names[filename] = filename.replace('.DTA', '').replace('.txt', '').replace('.xlsx', '')
                 
                 # Add to list widget with checkbox
-                item = QListWidgetItem(filename)
+                item = QListWidgetItem(self.display_names[filename])
+                item.setData(Qt.UserRole, filename)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(Qt.Checked)
                 self.file_list.addItem(item)
@@ -440,9 +438,7 @@ class EISTab(QWidget):
                 # Enable controls
                 self.export_csv_btn.setEnabled(True)
                 self.export_plot_btn.setEnabled(True)
-                self.edit_names_btn.setEnabled(True)
-                
-                # Plot
+                                
                 self.update_plot()
             else:
                 self.status_label.setText(f"âŒ Not an EIS file: {file_path}")
@@ -456,7 +452,7 @@ class EISTab(QWidget):
         """Remove selected files from list"""
         
         for item in self.file_list.selectedItems():
-            filename = item.text()
+            filename = item.data(Qt.UserRole)
             if filename in self.loaded_files:
                 del self.loaded_files[filename]
                 del self.display_names[filename]
@@ -466,7 +462,6 @@ class EISTab(QWidget):
         
         if len(self.loaded_files) == 0:
             self.show_empty_plot()
-            self.edit_names_btn.setEnabled(False)
         else:
             self.update_plot()
     
@@ -482,43 +477,25 @@ class EISTab(QWidget):
         # Disable controls
         self.export_csv_btn.setEnabled(False)
         self.export_plot_btn.setEnabled(False)
-        self.edit_names_btn.setEnabled(False)
+        
     
-    def edit_legend_names(self):
-        """Open dialog to edit display names for legend"""
-        
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Edit Legend Names")
-        dialog.setMinimumWidth(400)
-        
-        layout = QVBoxLayout(dialog)
-        form_layout = QFormLayout()
-        
-        # Create text input for each file
-        name_inputs = {}
-        for filename in self.loaded_files.keys():
-            label = QLabel(f"{filename}:")
-            line_edit = QLineEdit(self.display_names[filename])
-            form_layout.addRow(label, line_edit)
-            name_inputs[filename] = line_edit
-        
-        layout.addLayout(form_layout)
-        
-        # OK/Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(dialog.accept)
-        button_box.rejected.connect(dialog.reject)
-        layout.addWidget(button_box)
-        
-        # Show dialog
-        if dialog.exec_():
-            # Update display names
-            for filename, line_edit in name_inputs.items():
-                self.display_names[filename] = line_edit.text()
-            
-            # Replot with new names
-            self.update_plot()
-            self.status_label.setText("✓ Legend names updated")
+    def _start_legend_edit(self, item):
+        """Make item text editable on double-click."""
+        item.setFlags(item.flags() | Qt.ItemIsEditable)
+        self.file_list.editItem(item)
+
+    def _on_item_changed(self, item):
+        """When a list item's text is committed, update display_names and replot."""
+        filename = item.data(Qt.UserRole)
+        if filename is None:
+            return
+        new_name = item.text().strip()
+        if not new_name:
+            item.setText(self.display_names.get(filename, filename))
+            return
+        self.display_names[filename] = new_name
+        self.update_plot()
+        self.status_label.setText("✓ Legend name updated")
     
     def update_status(self):
         """Update status label"""
@@ -577,7 +554,7 @@ class EISTab(QWidget):
         for i in range(self.file_list.count()):
             item = self.file_list.item(i)
             if item.checkState() == Qt.Checked:
-                filename = item.text()
+                filename = item.data(Qt.UserRole)
                 data = self.loaded_files[filename]
                 color = self.colors[color_idx % len(self.colors)]
                 
@@ -587,20 +564,20 @@ class EISTab(QWidget):
                 
                 # Nyquist plot
                 ax1.plot(data.z_real, -data.z_imag, 
-                        'o', markersize=5, color=color, label=self.display_names[filename])
+                        'o', markersize=6, color=color, label=self.display_names[filename])
                 
                 # Bode plots (only if enabled and axes exist)
                 if show_bode:
                     # Bode magnitude (left y-axis)
                     z_mod = np.sqrt(data.z_real**2 + data.z_imag**2)
                     ax2.semilogx(data.frequency, z_mod, 
-                                'o-', markersize=5, linewidth=1, color=color, 
+                                'o-', markersize=6, linewidth=1, color=color, 
                                 label=self.display_names[filename])
                     
                     # Bode phase (right y-axis) - dashed line
                     phase = np.arctan2(-data.z_imag, data.z_real) * 180 / np.pi
                     ax3.semilogx(data.frequency, phase,
-                                'o--', markersize=5, markerfacecolor='None', 
+                                'o--', markersize=6, markerfacecolor='None', 
                                 linewidth=1, color=color, alpha=0.7)
                 
                 color_idx += 1
@@ -684,7 +661,7 @@ class EISTab(QWidget):
         for i in range(self.file_list.count()):
             item = self.file_list.item(i)
             if item.checkState() == Qt.Checked:
-                filename = item.text()
+                filename = item.data(Qt.UserRole)
                 checked_files.append((filename, self.loaded_files[filename]))
         
         if not checked_files:
