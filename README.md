@@ -88,3 +88,8 @@ cd pyEAT
 pip install -r requirements.txt
 python main.py
 ```
+
+
+## AI Disclosure
+
+pyEAT was developed with the assistance of [Claude](https://claude.ai) (Anthropic), used for code generation, debugging, and documentation. All code has been reviewed and tested by the author.
