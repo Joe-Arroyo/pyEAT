@@ -91,7 +91,7 @@ python main.py
 
 ---
 # How to use it:
-See tutorial for a quick guide on how to use pyEAT.
+See [Tutorial](Tutorial.md) for a quick guide on how to use pyEAT.
 
 ---
 
