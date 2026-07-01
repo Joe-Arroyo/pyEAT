@@ -39,8 +39,6 @@ A Python GUI application for electrochemical characterization of electrolyzers. 
 | Riden RD6006 (.xlsx) | — | ✓ | ✓ |
 | Custom CSV | — | ✓ | ✓ |
 
-give them to me in md format to paste them into my readme file
-
 ## Installation
 
 ### Requirements
