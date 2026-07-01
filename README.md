@@ -1,29 +1,92 @@
-# Electrolyzer Analyzer
-A Python GUI application for electrochemical characterization of electrolyzers. Unifies data from multiple instruments and measurement techniques into a single interactive analysis environment — replacing fragmented notebook workflows with a cohesive, publication-ready tool.
+# pyEAT: a Python Electrolysis Analysis Tool
+A Python GUI application for electrochemical characterization of electrolyzers. Unifies data from multiple instruments and measurement techniques into a single interactive analysis environment.
 
-# Features
-## EIS (Electrochemical Impedance Spectroscopy)
+## Features
 
-Overlay mode: Nyquist + optional Bode plots (magnitude and phase) for multiple datasets
-Grid mode: individual Nyquist/Bode subplots per file with alphabetical labels
-Nyquist aspect ratio controls: Auto, Equal, or Adjusted (removes blank space)
-Frequency markers: annotate specific frequencies on the Nyquist plot
-Editable legend names per dataset
-Supports up to 20 simultaneous datasets with distinct colors
+### EIS (Electrochemical Impedance Spectroscopy)
+- Overlay mode: Nyquist + optional Bode plots for multiple datasets
+- Grid mode: individual subplots per file
+- Nyquist aspect ratio controls
+- Frequency markers on the Nyquist plot
+- Editable legend names per dataset
+- Supports up to 20 simultaneous datasets
 
-## Polarization Curves
+### Polarization Curves
+- Automatically detects galvanostatic current steps from chronopotentiometry data
+- Extracts steady-state voltages over a configurable trailing window
+- Group management: compare different experimental conditions side by side
+- Curve averaging with uncertainty (standard deviation)
+- Interactive point selection with undo/redo
+- Transient data view alongside the polarization curve
+- CSV and plot export
 
-Automatically detects galvanostatic current steps from chronopotentiometry data
-Extracts steady-state voltages by averaging over a configurable trailing window (e.g., last 30 s of each step)
-Builds polarization curves (cell voltage vs. current density) across multiple files
-Group management: create named groups to compare different experimental conditions side by side
-Interactive point selection: click to exclude/include points, with full undo/redo support
-Displays raw transient data alongside the polarization curve
-CSV export: polarization curve data and/or raw transient data, with optional metadata headers
-Plot export: configurable size, DPI (150–1200), and format (PNG, PDF, SVG, TIFF)
+### Chronopotentiometry Viewer
+- Load and overlay multiple files
+- Scatter plot of voltage and current vs. time
+- Time unit selection (seconds, minutes, hours)
+- Axis scale controls and data subsampling
+- CSV and plot export
 
-## Chronopotentiometry Viewer
+---
 
-Load and visualize raw voltage and/or current vs. time traces
-Optional time range filtering
-Export as CSV or PNG
+## Supported Instruments
+
+| Instrument | EIS | Polarization | Chronopotentiometry |
+|---|---|---|---|
+| Gamry (.DTA) | ✓ | ✓ | ✓ |
+| Autolab ASCII (.txt) | ✓ | ✓ | ✓ |
+| Autolab Excel (.xlsx) | ✓ | ✓ | ✓ |
+| Riden RD6006 (.xlsx) | — | ✓ | ✓ |
+| Custom CSV | — | ✓ | ✓ |
+
+give them to me in md format to paste them into my readme file
+
+## Installation
+
+### Requirements
+
+- Python 3.9 or higher
+- The following Python packages:
+  - PyQt5
+  - matplotlib
+  - numpy
+  - pandas
+  - openpyxl
+
+### Option 1 — Conda (recommended for non-developers)
+
+1. Install [Anaconda](https://www.anaconda.com/download) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
+2. Open the **Anaconda Prompt** (Windows) or a terminal (Mac/Linux)
+3. Clone this repository:
+
+    ```bash
+    git clone https://github.com/joe-arroyo/pyEAT.git
+    cd pyEAT
+    ```
+
+4. Create the environment and install dependencies:
+
+    ```bash
+    conda create -n pyeat python=3.11
+    conda activate pyeat
+    pip install -r requirements.txt
+    ```
+
+5. Run the application:
+
+    ```bash
+    python main.py
+    ```
+
+> Next time you want to run it, open Anaconda Prompt, run `conda activate pyeat`, navigate to the folder, and run `python main.py`.
+
+---
+
+### Option 2 — pip (for developers)
+
+```bash
+git clone https://github.com/joe-arroyo/pyEAT.git
+cd pyEAT
+pip install -r requirements.txt
+python main.py
+```
