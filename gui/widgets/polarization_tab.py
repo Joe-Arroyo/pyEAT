@@ -247,7 +247,7 @@ class PolarizationTab(QWidget):
     def create_left_panel(self):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setMaximumWidth(560)
+        scroll.setMaximumWidth(600)
 
         container = QWidget()
         layout = QVBoxLayout(container)

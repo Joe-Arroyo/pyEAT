@@ -56,7 +56,7 @@ class ChronopotentiometryTab(QWidget):
         # Scrollable left panel
         left_scroll = QScrollArea()
         left_scroll.setWidgetResizable(True)
-        left_scroll.setMaximumWidth(420)
+        left_scroll.setMaximumWidth(500)
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
         left_scroll.setWidget(left_panel)
