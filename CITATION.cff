@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "pyEAT"
+version: 1.0.0
+doi: 10.5281/zenodo.21140509
+date-released: 2026-07-02
+license: MIT
+repository-code: "https://github.com/Joe-Arroyo/pyEAT"
+type: software
+abstract: "pyEAT (Python Electrolyzer Analysis Toolkit) is a Python package for analyzing electrolyzer characterization data, including EIS, polarization curves, and chronopotentiometry, from Gamry and Autolab potentiostats, Riden power supplies (RD6006), and custom CSV files."
+authors:
+  - family-names: "Arroyo-Gómez"
+    given-names: "José J."
+    affiliation: "Consejo Nacional de Investigaciones Científicas y Técnicas (CONICET) / National Institute of Industrial Technology (INTI)"
+    # orcid: "https://orcid.org/XXXX-XXXX-XXXX-XXXX"
+keywords:
+  - electrolyzer
+  - EIS
+  - electrochemical impedance spectroscopy
+  - chronopotentiometry
+  - green hydrogen
+  - Gamry
+  - Autolab
