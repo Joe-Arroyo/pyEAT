@@ -35,7 +35,7 @@ INSTRUMENTS = [
 ]
 
 TIME_DIVISORS = {"Seconds": 1.0, "Minutes": 60.0, "Hours": 3600.0}
-TIME_LABELS   = {"Seconds": "Time (s)", "Minutes": "Time (min)", "Hours": "Time (h)"}
+TIME_LABELS   = {"Seconds": "Time [s]", "Minutes": "Time [min]", "Hours": "Time [h]"}
 
 
 class ChronopotentiometryTab(QWidget):
@@ -466,30 +466,32 @@ class ChronopotentiometryTab(QWidget):
             t, voltage, current = self._get_file_data(filename)
 
             if ax_v is not None:
-                ax_v.scatter(t, voltage, s=5, color=color, label=label)
+                ax_v.scatter(t, voltage, s=5, color=color, label=label, alpha=0.7)
             if ax_i is not None:
-                ax_i.scatter(t, current, s=5, color=color, label=label)
+                ax_i.scatter(t, current, s=5, color=color, label=label, alpha=0.7)
 
         # Format voltage axis
         if ax_v is not None:
-            ax_v.set_ylabel("Voltage (V)", fontsize=11)
-            ax_v.set_title("Voltage vs Time", fontsize=12, fontweight="bold")
-            ax_v.grid(True, alpha=0.3)
+            ax_v.set_ylabel("Voltage [V]", fontsize=16, fontweight="bold")
+            ax_v.set_title("Voltage vs Time", fontsize=14, fontweight="bold")
+            ax_v.tick_params(axis="both", labelsize=14)
+            ax_v.grid(True, alpha=0.3, linestyle="--")
             if show_both:
                 ax_v.tick_params(labelbottom=False)
             else:
-                ax_v.set_xlabel(time_label, fontsize=11)
+                ax_v.set_xlabel(time_label, fontsize=16, fontweight="bold")
             if len(checked) > 1:
-                ax_v.legend(fontsize=9, loc="best")
+                ax_v.legend(fontsize=14, loc="best")
 
         # Format current axis
         if ax_i is not None:
-            ax_i.set_xlabel(time_label, fontsize=11)
-            ax_i.set_ylabel("Current (A)", fontsize=11)
-            ax_i.set_title("Current vs Time", fontsize=12, fontweight="bold")
-            ax_i.grid(True, alpha=0.3)
+            ax_i.set_xlabel(time_label, fontsize=16, fontweight="bold")
+            ax_i.set_ylabel("Current [A]", fontsize=16, fontweight="bold")
+            ax_i.set_title("Current vs Time", fontsize=14, fontweight="bold")
+            ax_i.tick_params(axis="both", labelsize=14)
+            ax_i.grid(True, alpha=0.3, linestyle="--")
             if ax_v is None and len(checked) > 1:
-                ax_i.legend(fontsize=9, loc="best")
+                ax_i.legend(fontsize=14, loc="best")
 
         # Apply axis limits after plotting
         for ax in self.figure.get_axes():
