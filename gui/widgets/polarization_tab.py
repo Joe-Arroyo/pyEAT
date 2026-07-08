@@ -1137,7 +1137,7 @@ class PolarizationTab(QWidget):
             'file': [f"avg({n_curves} curves)"] * n_steps,
             'step': np.arange(1, n_steps + 1),
             'j': j_mean,
-            'I_mean': j_mean * area,
+            'I_mean': j_mean * area if area != 0 else j_mean,
             'V': v_mean,
             'V_std': v_std,
             'N_curves': [n_curves] * n_steps,
@@ -1949,7 +1949,9 @@ class PolarizationTab(QWidget):
         lines1, labels1 = ax2_voltage.get_legend_handles_labels()
         lines2, labels2 = ax2_current.get_legend_handles_labels()
         by_label = dict(zip(labels1 + labels2, lines1 + lines2))
-        ax2_voltage.legend(by_label.values(), by_label.keys(), fontsize=14, loc='best', framealpha=0.9)
+        extras = ['Steady-state region', 'Average voltage', 'Current']
+        ordered = [k for k in by_label if k not in extras] + [k for k in extras if k in by_label]
+        ax2_voltage.legend([by_label[k] for k in ordered], ordered, fontsize=14, loc='best', framealpha=0.9)
 
     def plot_multi_with_transient(self, groups, all_groups=None):
         n = len(groups)
@@ -2038,7 +2040,9 @@ class PolarizationTab(QWidget):
             lines1, labels1 = ax2.get_legend_handles_labels()
             lines2, labels2 = ax2_current.get_legend_handles_labels()
             by_label = dict(zip(labels1 + labels2, lines1 + lines2))
-            ax2.legend(by_label.values(), by_label.keys(), fontsize=14, loc='best', framealpha=0.9)
+            extras = ['Steady-state', 'Avg voltage', 'Current']
+            ordered = [k for k in by_label if k not in extras] + [k for k in extras if k in by_label]
+            ax2.legend([by_label[k] for k in ordered], ordered, fontsize=14, loc='best', framealpha=0.9)
 
         else:
             for i, (name, group, color) in enumerate(groups):
