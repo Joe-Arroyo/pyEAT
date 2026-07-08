@@ -93,6 +93,10 @@ python main.py
 See [Tutorial](Tutorial.md) for a quick guide on how to use pyEAT.
 
 ---
+# Cite
+If you use pyEAT in your research, please cite it as:
+> Arroyo-Gómez, José J. (2026). pyEAT. https://doi.org/10.5281/zenodo.21140508
+---
 
 ## AI Disclosure
 
