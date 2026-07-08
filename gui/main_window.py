@@ -21,7 +21,7 @@ class ElectrolyzerAnalyzer(QMainWindow):
     def init_ui(self):
         """Initialize the user interface"""
         
-        self.setWindowTitle("Electrolyzer Analyzer")
+        self.setWindowTitle("pyEAT: Electrolysis Analysis Tool")
         self.setGeometry(100, 100, 1400, 900)
         
         # Create central widget

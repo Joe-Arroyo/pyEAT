@@ -88,7 +88,7 @@ class EISTab(QWidget):
             freq: Frequency array
             marker_freqs: List of frequencies to mark (Hz)
         """
-        if not marker_freqs:
+        if not marker_freqs or freq is None or len(freq) == 0:
             return
         
         # Convert to numpy arrays if needed
@@ -597,7 +597,7 @@ class EISTab(QWidget):
             for i in range(self.file_list.count()):
                 item = self.file_list.item(i)
                 if item.checkState() == Qt.Checked:
-                    filename = item.text()
+                    filename = item.data(Qt.UserRole)
                     data = self.loaded_files[filename]
                     self._add_frequency_markers(ax1, data.z_real, data.z_imag, data.frequency, marker_freqs)
         
