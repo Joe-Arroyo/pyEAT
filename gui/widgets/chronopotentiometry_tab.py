@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QFileDialog, QGroupBox, QComboBox, QLineEdit, QCheckBox, QRadioButton,
     QListWidget, QListWidgetItem, QScrollArea, QDialog, QFormLayout,
-    QDialogButtonBox, QSpinBox
+    QDialogButtonBox, QSpinBox, QApplication
 )
 from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -35,7 +35,7 @@ INSTRUMENTS = [
 ]
 
 TIME_DIVISORS = {"Seconds": 1.0, "Minutes": 60.0, "Hours": 3600.0}
-TIME_LABELS   = {"Seconds": "Time [s]", "Minutes": "Time [min]", "Hours": "Time [h]"}
+TIME_LABELS   = {"Seconds": "Time (s)", "Minutes": "Time (min)", "Hours": "Time (h)"}
 
 
 class ChronopotentiometryTab(QWidget):
@@ -102,6 +102,30 @@ class ChronopotentiometryTab(QWidget):
         file_group.setLayout(file_layout)
         left_layout.addWidget(file_group)
 
+        # ── Combine files ──────────────────────────────────────────────
+        combine_group = QGroupBox("🔗 Combine Files")
+        combine_layout = QVBoxLayout()
+
+        self.concat_checkbox = QCheckBox("Concatenate into continuous series")
+        self.concat_checkbox.setToolTip(
+            "Place files one after another on a single, continuous time axis "
+            "instead of overlaying them. Each file is rebased so it begins where "
+            "the previous file ends, following the order in the file list above."
+        )
+        self.concat_checkbox.stateChanged.connect(self.update_plot)
+        combine_layout.addWidget(self.concat_checkbox)
+
+        combine_hint = QLabel(
+            "Use for split recordings that share the same timestamps "
+            "(e.g. sequential logs each starting at 0)."
+        )
+        combine_hint.setWordWrap(True)
+        combine_hint.setStyleSheet("color: gray; font-size: 11px;")
+        combine_layout.addWidget(combine_hint)
+
+        combine_group.setLayout(combine_layout)
+        left_layout.addWidget(combine_group)
+
         # ── Plot selection ─────────────────────────────────────────────
         plot_group = QGroupBox("📊 Plot Selection")
         plot_layout = QVBoxLayout()
@@ -117,6 +141,21 @@ class ChronopotentiometryTab(QWidget):
 
         plot_group.setLayout(plot_layout)
         left_layout.addWidget(plot_group)
+
+        # ── Plot style ─────────────────────────────────────────────────
+        style_group = QGroupBox("🎨 Plot Style")
+        style_layout = QVBoxLayout()
+
+        self.style_scatter_radio = QRadioButton("Scatter (points)")
+        self.style_line_radio     = QRadioButton("Line")
+        self.style_scatter_radio.setChecked(True)
+
+        for rb in (self.style_scatter_radio, self.style_line_radio):
+            rb.toggled.connect(self.update_plot)
+            style_layout.addWidget(rb)
+
+        style_group.setLayout(style_layout)
+        left_layout.addWidget(style_group)
 
         # ── Time units ─────────────────────────────────────────────────
         units_group = QGroupBox("⏱️ Time Units")
@@ -358,25 +397,63 @@ class ChronopotentiometryTab(QWidget):
         file_paths, _ = QFileDialog.getOpenFileNames(
             self, "Select File(s)", "", file_filter
         )
-        for fp in file_paths:
-            self._load_single(idx, fp)
+        if not file_paths:
+            return
+
+        total = len(file_paths)
+        added = skipped = failed = 0
+
+        # Suppress per-item itemChanged signals (each setCheckState would
+        # otherwise trigger a full replot) and defer plotting until the very
+        # end, so loading N files replots once instead of N times.
+        self.file_list.blockSignals(True)
+        try:
+            for n, fp in enumerate(file_paths, 1):
+                result = self._load_single(idx, fp)
+                if result == "added":
+                    added += 1
+                elif result == "duplicate":
+                    skipped += 1
+                else:
+                    failed += 1
+
+                # Keep the UI responsive and show progress on large batches.
+                self.status_label.setText(f"Loading… {n}/{total}")
+                QApplication.processEvents()
+        finally:
+            self.file_list.blockSignals(False)
+
+        msg = f"✓ Loaded {added} file(s)"
+        if skipped:
+            msg += f" · {skipped} already loaded"
+        if failed:
+            msg += f" · {failed} failed"
+        self.status_label.setText(msg)
+
+        self._set_export_enabled(bool(self.loaded_files))
+        # Single replot after the whole batch is in.
+        if self.loaded_files:
+            self.update_plot()
 
     def _load_single(self, instrument_idx: int, file_path: str):
+        """Parse and register one file. Returns 'added', 'duplicate' or 'failed'.
+
+        Does not replot — callers are responsible for triggering a single
+        replot after a batch, so bulk loads stay fast.
+        """
         try:
             data = self._parse_file(instrument_idx, file_path)
         except Exception as e:
-            self.status_label.setText(f"❌ Error: {e}")
-            return
+            print(f"ERROR loading {file_path}: {e}")
+            return "failed"
 
         if data is None:
-            self.status_label.setText("❌ Failed to load — check the console")
-            return
+            return "failed"
 
         filename = data.source_file.name
         # Avoid duplicate entries in the list
         if filename in self.loaded_files:
-            self.status_label.setText(f"ℹ️ Already loaded: {filename}")
-            return
+            return "duplicate"
 
         self.loaded_files[filename] = data
         # Strip common extensions for the default legend label
@@ -390,10 +467,7 @@ class ChronopotentiometryTab(QWidget):
         item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
         item.setCheckState(Qt.Checked)
         self.file_list.addItem(item)
-
-        self._update_status()
-        self._set_export_enabled(True)
-        self.update_plot()
+        return "added"
 
     def _parse_file(self, instrument_idx: int, file_path: str):
         if instrument_idx == 0:
@@ -421,7 +495,94 @@ class ChronopotentiometryTab(QWidget):
         current = data.current[::skip].values
         return t, voltage, current
 
+    # Cap on how many points are actually drawn per trace. Rendering millions
+    # of scatter points is what made large batches freeze/crash; this keeps the
+    # plot responsive. Exports still use the full-resolution data.
+    MAX_DISPLAY_POINTS = 40000
+
+    @classmethod
+    def _downsample_for_display(cls, t, voltage, current):
+        """Uniformly thin arrays to at most MAX_DISPLAY_POINTS for plotting."""
+        n = len(t)
+        if n <= cls.MAX_DISPLAY_POINTS:
+            return t, voltage, current
+        stride = int(np.ceil(n / cls.MAX_DISPLAY_POINTS))
+        return t[::stride], voltage[::stride], current[::stride]
+
+    def _checked_filenames(self):
+        """Return checked filenames in file-list (display) order."""
+        checked = []
+        for i in range(self.file_list.count()):
+            item = self.file_list.item(i)
+            if item.checkState() == Qt.Checked:
+                filename = item.data(Qt.UserRole)
+                if filename in self.loaded_files:
+                    checked.append(filename)
+        return checked
+
+    def _get_concatenated_data(self, filenames):
+        """Merge files (in the given order) into one continuous series.
+
+        Each file's time is rebased to start at zero, then shifted so it begins
+        where the previous file ended. Assumes files share timestamps (each
+        starting near t=0) and should be presented back-to-back. Skip and the
+        selected time unit are applied to the combined result.
+        """
+        skip = self.skip_input.value()
+        divisor, _ = self._get_time_divisor()
+
+        times, volts, currs = [], [], []
+        offset = 0.0
+        for filename in filenames:
+            data = self.loaded_files[filename]
+            t = np.asarray(data.time.values, dtype=float)
+            v = np.asarray(data.voltage.values, dtype=float)
+            c = np.asarray(data.current.values, dtype=float)
+            if t.size == 0:
+                continue
+
+            t_shift = t - t[0] + offset
+            times.append(t_shift)
+            volts.append(v)
+            currs.append(c)
+
+            # Advance the running offset past this file, adding one median
+            # sample step so the next file's first point does not overlap.
+            dt = float(np.median(np.diff(t))) if t.size > 1 else 0.0
+            offset = t_shift[-1] + dt
+
+        if not times:
+            empty = np.array([])
+            return empty, empty, empty
+
+        t_all = np.concatenate(times)[::skip] / divisor
+        v_all = np.concatenate(volts)[::skip]
+        c_all = np.concatenate(currs)[::skip]
+        return t_all, v_all, c_all
+
     # ── Plotting ──────────────────────────────────────────────────────
+
+    def _series_colors(self, n):
+        """Return a list of n colors for overlaid files.
+
+        Up to 10 files get the distinct tab10 palette. Beyond that, a distinct
+        cycle stops being readable, so switch to an automatic light→dark
+        gradient that stretches to span exactly however many files are loaded —
+        useful for showing progression across a sequence of runs.
+        """
+        if n <= 10:
+            return [self.colors[i % len(self.colors)] for i in range(n)]
+        # Sample a single-hue sequential map from light to dark. Start at 0.35
+        # (not 0.0) so the lightest trace is still visible on a white canvas.
+        return list(plt.cm.Blues(np.linspace(0.35, 1.0, n)))
+
+    @staticmethod
+    def _draw_series(ax, x, y, color, label, as_line):
+        """Draw one trace as either a connected line or a scatter of points."""
+        if as_line:
+            ax.plot(x, y, "-", linewidth=1.2, color=color, label=label, rasterized=True)
+        else:
+            ax.scatter(x, y, s=5, color=color, label=label, rasterized=True)
 
     def update_plot(self):
         if not self.loaded_files:
@@ -432,13 +593,7 @@ class ChronopotentiometryTab(QWidget):
         _, time_label = self._get_time_divisor()
 
         # Collect checked files in list order
-        checked = []
-        for i in range(self.file_list.count()):
-            item = self.file_list.item(i)
-            if item.checkState() == Qt.Checked:
-                filename = item.data(Qt.UserRole)
-                if filename in self.loaded_files:
-                    checked.append(filename)
+        checked = self._checked_filenames()
 
         if not checked:
             self.show_empty_plot()
@@ -460,38 +615,58 @@ class ChronopotentiometryTab(QWidget):
             ax_v = None
             ax_i = self.figure.add_subplot(111)
 
-        for idx, filename in enumerate(checked):
-            color = self.colors[idx % len(self.colors)]
-            label = self.display_names[filename]
-            t, voltage, current = self._get_file_data(filename)
+        concat = self.concat_checkbox.isChecked()
+        as_line = self.style_line_radio.isChecked()
 
+        if concat:
+            # One continuous trace built from all checked files, in list order.
+            t, voltage, current = self._get_concatenated_data(checked)
+            t, voltage, current = self._downsample_for_display(t, voltage, current)
+            label = f"Concatenated ({len(checked)} files)"
+            color = self.colors[0]
             if ax_v is not None:
-                ax_v.scatter(t, voltage, s=5, color=color, label=label, alpha=0.7)
+                self._draw_series(ax_v, t, voltage, color, label, as_line)
             if ax_i is not None:
-                ax_i.scatter(t, current, s=5, color=color, label=label, alpha=0.7)
+                self._draw_series(ax_i, t, current, color, label, as_line)
+        else:
+            series_colors = self._series_colors(len(checked))
+            for idx, filename in enumerate(checked):
+                color = series_colors[idx]
+                label = self.display_names[filename]
+                t, voltage, current = self._get_file_data(filename)
+                t, voltage, current = self._downsample_for_display(t, voltage, current)
+
+                if ax_v is not None:
+                    self._draw_series(ax_v, t, voltage, color, label, as_line)
+                if ax_i is not None:
+                    self._draw_series(ax_i, t, current, color, label, as_line)
+
+        # A legend with one entry per file becomes unusable (and very slow to
+        # render) for large batches, so cap it. Concatenate mode is a single
+        # entry, so it always shows.
+        MAX_LEGEND_ENTRIES = 20
+        show_legend = concat or (1 < len(checked) <= MAX_LEGEND_ENTRIES)
 
         # Format voltage axis
         if ax_v is not None:
-            ax_v.set_ylabel("Voltage [V]", fontsize=16, fontweight="bold")
-            ax_v.set_title("Voltage vs Time", fontsize=14, fontweight="bold")
-            ax_v.tick_params(axis="both", labelsize=14)
-            ax_v.grid(True, alpha=0.3, linestyle="--")
+            ax_v.set_ylabel("Voltage (V)", fontsize=11)
+            ax_v.set_title("Voltage vs Time", fontsize=12, fontweight="bold")
+            ax_v.grid(True, alpha=0.3)
             if show_both:
                 ax_v.tick_params(labelbottom=False)
             else:
-                ax_v.set_xlabel(time_label, fontsize=16, fontweight="bold")
-            if len(checked) > 1:
-                ax_v.legend(fontsize=14, loc="best")
+                ax_v.set_xlabel(time_label, fontsize=11)
+            if show_legend:
+                ax_v.legend(fontsize=9, loc="best")
 
         # Format current axis
         if ax_i is not None:
-            ax_i.set_xlabel(time_label, fontsize=16, fontweight="bold")
-            ax_i.set_ylabel("Current [A]", fontsize=16, fontweight="bold")
-            ax_i.set_title("Current vs Time", fontsize=14, fontweight="bold")
-            ax_i.tick_params(axis="both", labelsize=14)
-            ax_i.grid(True, alpha=0.3, linestyle="--")
-            if ax_v is None and len(checked) > 1:
-                ax_i.legend(fontsize=14, loc="best")
+            ax_i.set_xlabel(time_label, fontsize=11)
+            ax_i.set_ylabel("Current (A)", fontsize=11)
+            ax_i.set_title("Current vs Time", fontsize=12, fontweight="bold")
+            ax_i.grid(True, alpha=0.3)
+            if ax_v is None and show_legend:
+                ax_i.legend(fontsize=9, loc="best")
 
         # Apply axis limits after plotting
         for ax in self.figure.get_axes():
@@ -529,6 +704,24 @@ class ChronopotentiometryTab(QWidget):
             return
 
         import pandas as pd
+
+        if self.concat_checkbox.isChecked():
+            # Export the single continuous series exactly as plotted.
+            checked = self._checked_filenames()
+            if not checked:
+                self.status_label.setText("❌ No checked files to export")
+                return
+            _, time_label = self._get_time_divisor()
+            t, voltage, current = self._get_concatenated_data(checked)
+            df = pd.DataFrame({
+                time_label: t,
+                "voltage":  voltage,
+                "current":  current,
+            })
+            df.to_csv(file_path, index=False)
+            self.status_label.setText("✓ Exported concatenated CSV")
+            return
+
         frames = []
         for filename, data in self.loaded_files.items():
             df = pd.DataFrame({

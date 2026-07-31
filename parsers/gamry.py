@@ -38,42 +38,47 @@ class GamryParser:
             return None
         
         try:
-            # Try different encodings for reading the file
+            # Read the file ONCE. Opening the file a second time is wasteful in
+            # general and expensive for cloud-backed storage (e.g. OneDrive
+            # Files On-Demand), where every open can trigger a fresh download.
             encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
-            lines = None
-            
+            text = None
+
             for encoding in encodings:
                 try:
                     with open(filepath, 'r', encoding=encoding, errors='ignore') as file:
-                        lines = file.readlines()
+                        text = file.read()
                     break
                 except UnicodeDecodeError:
                     continue
-            
-            if lines is None:
+
+            if text is None:
                 print("❌ Could not read file with any encoding")
                 return None
-            
+
+            lines = text.splitlines()
+
             # Find the data section (usually starts after CURVE or similar)
             data_start = 0
             for i, line in enumerate(lines):
                 if 'Pt' in line and ('V' in line or 'mV' in line):
                     data_start = i
                     break
-            
-            # Read data using pandas with the same encoding approach
-            df = None
-            for encoding in encodings:
-                try:
-                    df = pd.read_csv(filepath, 
-                                    sep='\t', 
-                                    skiprows=data_start,
-                                    encoding=encoding,
-                                    on_bad_lines='skip')
-                    break
-                except (UnicodeDecodeError, pd.errors.ParserError):
-                    continue
-            
+
+            # Parse the already-loaded text (no second read of the file).
+            # low_memory=False parses each column in one pass, which avoids the
+            # mixed-type DtypeWarning and the slow chunked type inference.
+            from io import StringIO
+            try:
+                df = pd.read_csv(StringIO(text),
+                                 sep='\t',
+                                 skiprows=data_start,
+                                 on_bad_lines='skip',
+                                 low_memory=False)
+            except pd.errors.ParserError:
+                print("❌ Could not parse data")
+                return None
+
             if df is None:
                 print("❌ Could not parse data with any encoding")
                 return None

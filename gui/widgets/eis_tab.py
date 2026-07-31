@@ -519,9 +519,22 @@ class EISTab(QWidget):
         else:
             self.plot_grid()
     
+    def _series_colors(self, n):
+        """Return a list of n colors for overlaid files.
+
+        Up to 10 files get the default color cycle. Beyond that, a repeating
+        cycle stops being readable, so switch to an automatic light→dark
+        gradient stretched to span exactly however many files are loaded.
+        """
+        if n <= 10:
+            return [self.colors[i % len(self.colors)] for i in range(n)]
+        # Sample a single-hue sequential map from light to dark. Start at 0.35
+        # (not 0.0) so the lightest trace is still visible on a white canvas.
+        return list(plt.cm.Blues(np.linspace(0.35, 1.0, n)))
+
     def plot_overlay(self):
         """Plot all checked EIS files overlaid"""
-        
+
         self.figure.clear()
         
         # Suppress matplotlib warnings
@@ -549,6 +562,13 @@ class EISTab(QWidget):
         all_zreal = []
         all_zimag = []
         
+        # Count checked files first so the color gradient can be sized to them.
+        n_checked = sum(
+            1 for i in range(self.file_list.count())
+            if self.file_list.item(i).checkState() == Qt.Checked
+        )
+        series_colors = self._series_colors(n_checked)
+
         # Plot each checked file
         color_idx = 0
         for i in range(self.file_list.count()):
@@ -556,7 +576,7 @@ class EISTab(QWidget):
             if item.checkState() == Qt.Checked:
                 filename = item.data(Qt.UserRole)
                 data = self.loaded_files[filename]
-                color = self.colors[color_idx % len(self.colors)]
+                color = series_colors[color_idx]
                 
                 # Collect data for limits
                 all_zreal.extend(data.z_real.values)
