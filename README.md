@@ -1,6 +1,8 @@
 # pyEAT: a Python Electrolysis Analysis Tool
 A Python GUI application for electrochemical characterization of electrolyzers. Unifies data from multiple instruments and measurement techniques into a single interactive analysis environment.
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21140508.svg)](https://doi.org/10.5281/zenodo.21140508)
+
 ## Features
 
 ### EIS (Electrochemical Impedance Spectroscopy)
